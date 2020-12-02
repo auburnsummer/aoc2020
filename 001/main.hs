@@ -6,4 +6,4 @@ parseLines content = map read (lines content) :: [Int]
 main :: IO()
 main = do
     filecontent <- readFile "input"
-    (putStrLn . show . process2 . parseLines) filecontent
+    (print . process2 . parseLines) filecontent
