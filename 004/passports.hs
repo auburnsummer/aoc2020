@@ -24,108 +24,72 @@ parseText :: T.Text -> [Passport]
 parseText s
     = map parseLine (T.splitOn (T.pack "\n\n") s)
 
-numberValidator :: Int -> Int -> Maybe T.Text -> Bool
-numberValidator _ _ Nothing
-    = False
-numberValidator from to (Just text)
+-- Run a predicate on a value in a passport. If the value doesn't exist, it's false no matter what.
+passportTest :: T.Text -> (T.Text -> Bool) -> Passport -> Bool
+passportTest field pred pass
+    = f val
+    where
+        val = Map.lookup field pass
+        f :: Maybe T.Text -> Bool
+        f Nothing  = False
+        f (Just t) = pred t
+
+numberValidator :: Int -> Int -> T.Text -> Bool
+numberValidator from to text
     = n >= from && n <= to
     where n = read (T.unpack text)
 
-textValidator :: Int -> Int -> T.Text -> Passport -> Bool
-textValidator lower upper field pass
-    = numberValidator lower upper (Map.lookup field pass)
 
-byrValid = textValidator 1920 2002 (T.pack "byr") 
-
-iyrValid = textValidator 2010 2020 (T.pack "iyr")
-
-eyrValid = textValidator 2020 2030 (T.pack "eyr")
-
-hgtValid_1 :: Maybe T.Text -> Bool
-hgtValid_1 Nothing
-    = False
-hgtValid_1 (Just text)
-    | T.pack "in" `T.isSuffixOf` text = numberValidator 59 76 (Just t)
-    | T.pack "cm" `T.isSuffixOf` text = numberValidator 150 193 (Just t)
+hgtValid :: T.Text -> Bool
+hgtValid text
+    | T.pack "in" `T.isSuffixOf` text = numberValidator 59 76 t
+    | T.pack "cm" `T.isSuffixOf` text = numberValidator 150 193 t
     | otherwise                       = False
     where
         t = T.dropEnd 2 text
 
-hgtValid :: Passport -> Bool
-hgtValid pass
-    = hgtValid_1 (Map.lookup (T.pack "hgt") pass)
-
-
-hclValid :: Passport -> Bool
-hclValid pass
-    = f t
+hclValid :: T.Text -> Bool
+hclValid
+    = f . T.unpack
     where
-        t = Map.lookup (T.pack "hcl") pass
-        f :: Maybe T.Text -> Bool
-        f Nothing = False
-        f (Just text) = f2 (T.unpack text)
-        f2 :: String -> Bool
-        f2 ('#':xs)
+        f :: String -> Bool
+        f ('#':xs)
             = all f3 xs
             where
                 f3 c = isDigit c || (c >= 'a' && c <= 'f')
-        f2 _
+        f _
             = False
 
-eclValid :: Passport -> Bool
-eclValid pass
-    = f t
+eclValid :: T.Text -> Bool
+eclValid
+    = f . T.unpack
     where
-        t = Map.lookup (T.pack "ecl") pass
-        f :: Maybe T.Text -> Bool
-        f Nothing  = False
-        f (Just t) = f2 (T.unpack t)
-        f2 :: String -> Bool
-        f2 "amb" = True
-        f2 "blu" = True
-        f2 "brn" = True
-        f2 "gry" = True
-        f2 "grn" = True
-        f2 "hzl" = True
-        f2 "oth" = True
-        f2 _     = False
+        f :: String -> Bool
+        f "amb" = True
+        f "blu" = True
+        f "brn" = True
+        f "gry" = True
+        f "grn" = True
+        f "hzl" = True
+        f "oth" = True
+        f _     = False
 
-pidValid :: Passport -> Bool
-pidValid pass
-    = pidValid_1 (Map.lookup (T.pack "pid") pass)
-
-pidValid_1 :: Maybe T.Text -> Bool
-pidValid_1 Nothing = False
-pidValid_1 (Just t)
+pidValid :: T.Text -> Bool
+pidValid t
     = (length s == 9) && all isDigit s
     where s = T.unpack t
 
 validate :: Passport -> Bool
 validate pass
     = all ($ pass) [
-        Map.member byr,
-        Map.member iyr,
-        Map.member eyr,
-        Map.member hgt,
-        Map.member hcl,
-        Map.member ecl,
-        Map.member pid,
-        byrValid,
-        iyrValid,
-        eyrValid,
-        hgtValid,
-        hclValid,
-        eclValid,
-        pidValid
+        passportTest (T.pack "byr") (numberValidator 1920 2002),
+        passportTest (T.pack "iyr") (numberValidator 2010 2020),
+        passportTest (T.pack "eyr") (numberValidator 2020 2030),
+        passportTest (T.pack "hgt") hgtValid,
+        passportTest (T.pack "hcl") hclValid,
+        passportTest (T.pack "ecl") eclValid,
+        passportTest (T.pack "pid") pidValid
     ]
-    where
-        byr = T.pack "byr"
-        iyr = T.pack "iyr"
-        eyr = T.pack "eyr"
-        hgt = T.pack "hgt"
-        hcl = T.pack "hcl"
-        ecl = T.pack "ecl"
-        pid = T.pack "pid"
 
 process :: String -> Int
 process s
