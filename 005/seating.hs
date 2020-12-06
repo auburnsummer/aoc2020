@@ -12,6 +12,7 @@ parseChar 'B' = Last
 parseChar 'L' = First
 parseChar 'R' = Last
 
+parseString :: [Char] -> [Divider]
 parseString = map parseChar
 
 -- get a number
